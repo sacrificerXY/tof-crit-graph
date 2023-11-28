@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <script src="echarts.min.js"></script>
+    <script src="infographic.js"></script>
+    <script src="data.js"></script>
+</head>
+
+<body>
+    <style>
+        #main,
+        html,
+        body {
+            height: 99%
+        }
+
+        #main {
+            width: 100%;
+        }
+    </style>
+    <div id="main"></div>
+
+
+    <script type="text/javascript">// Assume the theme name is "vintage".
+        const INTERACTIVE = true;
+        // const INTERACTIVE = false;
+        var chart = echarts.init(document.getElementById('main'), 'infographic', { renderer: 'svg' });
+        chart.setOption({
+            title: {
+                text: 'Chance of rolling some total CRIT after 5 advancements of Gloves/Boots',
+                subtext: 'Assumes stat roll values are all equally likely (i.e. uniformly distributed between 468 and 1169)',
+                textAlign: 'left',
+                itemGap: 5,
+                left: 10,
+                textStyle: {
+                    color: '#000',
+                },
+                subtextStyle: {
+                    color: '#444',
+                },
+            },
+            legend: {
+                orient: 'vertical',
+                top: 130,
+                left: 10,
+                itemGap: 20,
+            },
+            graphic: [
+                {
+                    type: 'text',
+                    top: 100,
+                    left: 20,
+                    style: {
+                        text: 'Press to hide/show',
+                        font: 'normal 12px monospace',
+                    },
+                    silent: true,
+                    invisible: !INTERACTIVE,
+                }
+            ],
+            grid: {
+                top: 60,
+                left: 200,
+                right: 40,
+                bottom: 40,
+            },
+            dataset: [
+                {
+                    source: data[0],
+                },
+                {
+                    source: data[1],
+                },
+            ],
+            xAxis: {
+                min: 200,
+                max: 6150,
+                splitNumber: 12,
+                axisPointer: {
+                    show: INTERACTIVE,
+                    snap: true,
+                    position: 'begin',
+                    lineStyle: {
+                        color: '#444',
+                    },
+                    label: {
+                        formatter: ({ value }) => value.toString(),
+                    }
+                }
+            },
+            yAxis:
+            {
+                splitNumber: 20,
+                axisLabel: {
+                    formatter: (v) => ((1 - v) * 100).toFixed() + '%'
+                },
+            },
+            series: [
+                {
+                    type: 'line',
+                    name: 'no block\n(1 in 4 CRIT)',
+                    showSymbol: false,
+                    datasetIndex: 0,
+                    markLine: {
+                        symbol: 'none',
+                        label: {
+                            position: 'insideMiddleTop',
+                            backgroundColor: 'rgb(255,255,255,0.5)',
+                            padding: [5, 7, 5, 7],
+                            margin: 3,
+                            borderRadius: 3,
+                            color: '#444',
+                            textBorderColor: '#fff',
+                            textBorderWidth: 2,
+                            align: 'left',
+                            rich: {
+                                b: {
+                                    color: 'inherit',
+                                    fontWeight: 'bold',
+                                },
+                                h: {
+                                    color: '#222',
+                                    fontWeight: 'bold',
+                                }
+                            },
+                        },
+                        silent: true,
+                        precision: 10,
+                    }
+                },
+                {
+                    type: 'line',
+                    name: '5x block\n(1 in 3 CRIT)',
+                    showSymbol: false,
+                    datasetIndex: 1,
+                    markLine: {
+                        symbol: 'none',
+                        label: {
+                            position: 'insideMiddleBottom',
+                            backgroundColor: 'rgb(255,255,255,0.5)',
+                            padding: [5, 7, 5, 7],
+                            margin: 3,
+                            borderRadius: 3,
+                            color: '#444',
+                            textBorderColor: '#fff',
+                            textBorderWidth: 2,
+                            align: 'left',
+                            rich: {
+                                b: {
+                                    color: 'inherit',
+                                    fontWeight: 'bold',
+                                },
+                                h: {
+                                    color: '#222',
+                                    fontWeight: 'bold',
+                                }
+                            },
+                        },
+                        silent: true,
+                        precision: 10,
+                    }
+                },
+            ],
+            textStyle: {
+                fontFamily: 'monospace',
+                fontSize: 16,
+            },
+        });
+
+        function getClosestIndex(arr, val) {
+            if (val < arr[0][0]) return 0;
+            if (val > arr[arr.length - 1][0]) return arr.length - 1;
+            return arr.findIndex((v) => v[0] >= val)
+        }
+
+        function floatToPercentageString(val) {
+            for (let i = 1; i <= 15; i++) {
+                var rounded = Math.round(val * 100 * 10 ** i) / (10 ** i);
+                if (rounded != 0) {
+                    return (val * 100).toFixed(i + 1) + '%';
+                }
+            }
+            return (val * 100).toFixed(15) + '%';
+        }
+
+        window.addEventListener('resize', function () {
+            chart.resize();
+        });
+
+        chart.getZr().on('mousemove', function ({ /* componentType, seriesIndex,  */offsetX }) {
+            if (!INTERACTIVE) return;
+            var raw_x_crit = chart.convertFromPixel({ seriesIndex: 0 }, [offsetX, 0])[0];
+            raw_x_crit = Math.round(raw_x_crit) - 1; // need to sub 1 to match axisPointer for some reason
+
+            xIndex = getClosestIndex(data[0], raw_x_crit)
+            var [x_crit, y_chance_no_block] = data[0][xIndex];
+
+            xIndex = getClosestIndex(data[0], x_crit)
+            y_chance_with_block = data[1][xIndex][1];
+
+            chart.setOption({
+                series: [
+                    {
+                        markLine: {
+                            label: {
+                                formatter: '{b|~ ' + floatToPercentageString(1 - y_chance_no_block) + '} chance of rolling {h|at least} {b|' + x_crit.toFixed() + ' CRIT} if using {b|no blockers}',
+                            },
+                            data: [
+                                {
+                                    yAxis: y_chance_no_block
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        markLine: {
+                            label: {
+                                formatter: '{b|~ ' + floatToPercentageString(1 - y_chance_with_block) + '} chance of rolling {h|at least} {b|' + x_crit.toFixed() + ' CRIT} if using {b|5 blockers}',
+                            },
+                            data: [
+                                {
+                                    yAxis: y_chance_with_block
+                                }
+                            ],
+                        }
+                    }
+                ]
+            });
+        });
+    </script>
+</body>
+
+</html>
